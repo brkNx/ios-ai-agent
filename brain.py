@@ -58,14 +58,23 @@ Examine the screenshot and return the single next atomic action as structured JS
             from google.genai import types
             client = genai.Client(api_key=config.GEMINI_API_KEY)
             
+            # Downscale and compress to JPEG for lightning-fast network transfer & vision token inference
+            max_dim = 1024
+            w, h = image.size
+            if max(w, h) > max_dim:
+                scale = max_dim / max(w, h)
+                resized = image.resize((int(w * scale), int(h * scale)), Image.Resampling.BILINEAR)
+            else:
+                resized = image
+
             buf = io.BytesIO()
-            image.save(buf, format="PNG")
+            resized.convert("RGB").save(buf, format="JPEG", quality=75, optimize=True)
             img_bytes = buf.getvalue()
             
             response = client.models.generate_content(
                 model=config.GEMINI_MODEL,
                 contents=[
-                    types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                    types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
                     prompt
                 ],
                 config=types.GenerateContentConfig(
@@ -84,8 +93,17 @@ Examine the screenshot and return the single next atomic action as structured JS
         from openai import OpenAI
         client = OpenAI(api_key=config.OPENAI_API_KEY)
         
+        # Downscale and compress to JPEG for fast transfer
+        max_dim = 1024
+        w, h = image.size
+        if max(w, h) > max_dim:
+            scale = max_dim / max(w, h)
+            resized = image.resize((int(w * scale), int(h * scale)), Image.Resampling.BILINEAR)
+        else:
+            resized = image
+
         buf = io.BytesIO()
-        image.save(buf, format="PNG")
+        resized.convert("RGB").save(buf, format="JPEG", quality=75, optimize=True)
         b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
         
         response = client.beta.chat.completions.parse(
@@ -98,7 +116,7 @@ Examine the screenshot and return the single next atomic action as structured JS
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{b64_img}"}
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}
                         }
                     ]
                 }

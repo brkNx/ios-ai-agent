@@ -49,25 +49,25 @@ class IOSAgent:
                 print(f"-> Coordinate: ({decision.x}, {decision.y})")
                 self.driver.tap(decision.x, decision.y)
                 self.history.append(f"Tapped: ({decision.x}, {decision.y}) - {decision.reason}")
-                time.sleep(1.5)
+                time.sleep(0.4)
 
             elif decision.action == "type":
                 print(f"-> Text: '{decision.text}'")
                 self.driver.type_text(decision.text)
                 self.history.append(f"Typed: '{decision.text}'")
-                time.sleep(1.0)
+                time.sleep(0.3)
 
             elif decision.action == "swipe":
                 print(f"-> Direction: {decision.direction}")
                 self._handle_swipe(decision.direction, w, h)
                 self.history.append(f"Swiped: {decision.direction}")
-                time.sleep(1.5)
+                time.sleep(0.5)
 
             elif decision.action == "home":
                 print("-> Pressed Home Button")
                 self.driver.press_home()
                 self.history.append("Pressed Home button")
-                time.sleep(1.5)
+                time.sleep(0.5)
 
             elif decision.action == "wait":
                 sec = decision.seconds or 2
