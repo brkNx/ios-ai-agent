@@ -5,7 +5,7 @@ import requests
 from PIL import Image
 
 class WDADriver:
-    """WebDriverAgent (WDA) REST API client for iOS control."""
+    """WebDriverAgent (WDA) REST API client using modern W3C Actions."""
     def __init__(self, base_url: str = "http://localhost:8100"):
         self.base_url = base_url.rstrip("/")
         self.session_id = None
@@ -34,7 +34,7 @@ class WDADriver:
                 timeout=10
             )
             data = r.json()
-            self.session_id = data.get("sessionId")
+            self.session_id = data.get("sessionId") or data.get("value", {}).get("sessionId")
             return self.session_id
         except Exception as e:
             print(f"[!] Session acquisition error: {e}")
@@ -44,15 +44,17 @@ class WDADriver:
         """Return screen resolution in points: (width, height)."""
         if self._window_size:
             return self._window_size
+        session_id = self.get_session()
         try:
-            r = requests.get(f"{self.base_url}/window/size", timeout=5)
+            url = f"{self.base_url}/session/{session_id}/window/size" if session_id else f"{self.base_url}/window/size"
+            r = requests.get(url, timeout=5)
             res = r.json().get("value", {})
-            w = int(res.get("width", 393))
-            h = int(res.get("height", 852))
+            w = int(res.get("width", 390))
+            h = int(res.get("height", 844))
             self._window_size = (w, h)
             return self._window_size
         except Exception:
-            return (393, 852)
+            return (390, 844)
 
     def screenshot(self) -> Image.Image:
         """Capture screenshot and return a PIL Image object."""
@@ -63,28 +65,55 @@ class WDADriver:
         return Image.open(io.BytesIO(img_bytes))
 
     def tap(self, x: int, y: int):
-        """Tap at screen coordinates (x, y)."""
-        url = f"{self.base_url}/wda/tap/nil"
-        payload = {"x": x, "y": y}
-        r = requests.post(url, json=payload, timeout=5)
-        return r.status_code == 200
-
-    def swipe(self, from_x: int, from_y: int, to_x: int, to_y: int, duration: float = 0.4):
-        """Perform a swipe gesture from (from_x, from_y) to (to_x, to_y)."""
-        url = f"{self.base_url}/wda/dragfromtoforduration"
+        """Tap at screen coordinates (x, y) using W3C pointer actions."""
+        session_id = self.get_session()
+        url = f"{self.base_url}/session/{session_id}/actions"
         payload = {
-            "fromX": from_x,
-            "fromY": from_y,
-            "toX": to_x,
-            "toY": to_y,
-            "duration": duration
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {"pointerType": "touch"},
+                    "actions": [
+                        {"type": "pointerMove", "duration": 0, "x": int(x), "y": int(y)},
+                        {"type": "pointerDown", "button": 0},
+                        {"type": "pause", "duration": 100},
+                        {"type": "pointerUp", "button": 0}
+                    ]
+                }
+            ]
         }
         r = requests.post(url, json=payload, timeout=8)
         return r.status_code == 200
 
+    def swipe(self, from_x: int, from_y: int, to_x: int, to_y: int, duration: float = 0.4):
+        """Perform a swipe gesture from (from_x, from_y) to (to_x, to_y)."""
+        session_id = self.get_session()
+        url = f"{self.base_url}/session/{session_id}/actions"
+        duration_ms = int(duration * 1000)
+        payload = {
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {"pointerType": "touch"},
+                    "actions": [
+                        {"type": "pointerMove", "duration": 0, "x": int(from_x), "y": int(from_y)},
+                        {"type": "pointerDown", "button": 0},
+                        {"type": "pause", "duration": 50},
+                        {"type": "pointerMove", "duration": duration_ms, "x": int(to_x), "y": int(to_y)},
+                        {"type": "pointerUp", "button": 0}
+                    ]
+                }
+            ]
+        }
+        r = requests.post(url, json=payload, timeout=10)
+        return r.status_code == 200
+
     def type_text(self, text: str):
         """Type text into currently focused input element."""
-        url = f"{self.base_url}/wda/keys"
+        session_id = self.get_session()
+        url = f"{self.base_url}/session/{session_id}/wda/keys"
         payload = {"value": list(text)}
         r = requests.post(url, json=payload, timeout=10)
         return r.status_code == 200
@@ -97,8 +126,11 @@ class WDADriver:
 
     def launch_app(self, bundle_id: str):
         """Launch an application by its bundleId."""
-        session_id = self.get_session()
-        url = f"{self.base_url}/session/{session_id}/wda/apps/launch" if session_id else f"{self.base_url}/wda/apps/launch"
-        payload = {"bundleId": bundle_id}
-        r = requests.post(url, json=payload, timeout=10)
-        return r.status_code == 200
+        r = requests.post(
+            f"{self.base_url}/session",
+            json={"capabilities": {"bundleId": bundle_id}},
+            timeout=10
+        )
+        data = r.json()
+        self.session_id = data.get("sessionId") or data.get("value", {}).get("sessionId")
+        return bool(self.session_id)
