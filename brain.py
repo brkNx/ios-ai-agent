@@ -8,23 +8,23 @@ import config
 
 class ActionDecision(BaseModel):
     action: Literal["tap", "type", "swipe", "home", "wait", "finish"]
-    x: Optional[int] = Field(None, description="Tıklanacak X koordinatı (point)")
-    y: Optional[int] = Field(None, description="Tıklanacak Y koordinatı (point)")
-    text: Optional[str] = Field(None, description="Yazılacak metin (type aksiyonu için)")
-    direction: Optional[Literal["up", "down", "left", "right"]] = Field(None, description="Kaydırma yönü")
-    seconds: Optional[int] = Field(1, description="Bekleme süresi")
-    reason: str = Field(..., description="Bu eylemi neden seçtiğinin kısa açıklaması")
-    result: Optional[str] = Field(None, description="Görev bittiğinde kullanıcıya iletilecek sonuç")
+    x: Optional[int] = Field(None, description="Target X coordinate to tap in screen points")
+    y: Optional[int] = Field(None, description="Target Y coordinate to tap in screen points")
+    text: Optional[str] = Field(None, description="Text to type (for type action)")
+    direction: Optional[Literal["up", "down", "left", "right"]] = Field(None, description="Swipe direction")
+    seconds: Optional[int] = Field(1, description="Wait duration in seconds")
+    reason: str = Field(..., description="Short explanation of why this action was chosen")
+    result: Optional[str] = Field(None, description="Final outcome message when task is finished")
 
-SYSTEM_PROMPT = """Sen bir iPhone'u bizzat kullanan otonom bir AI ajansın.
-Sana verilen ekran görüntüsünü, ekran çözünürlüğünü ve kullanıcının nihai hedefini inceleyerek BİR SONRAKİ tekil fiziksel adımı seç.
+SYSTEM_PROMPT = """You are an autonomous AI agent operating an iPhone.
+Inspect the provided screenshot, screen dimensions, and user objective to decide the NEXT single physical action.
 
-Kurallar:
-1. Ekrandaki buton veya metinlerin koordinatlarını (X, Y) dikkatle hesapla.
-2. Koordinatlar piksel değil, iOS ekran boyutu (points) cinsindendir.
-3. Uygulama açmak için ana ekrandaki ikona tıkla veya Spotlight araması yap.
-4. Yazı yazmadan önce arama kutusuna veya mesaj alanına tıkla ('tap'), ardından 'type' eylemini kullan.
-5. Görev tamamlandığında 'finish' eylemini seç.
+Guidelines:
+1. Accurately estimate target button or input field coordinates (X, Y).
+2. Coordinates must be in screen points, not physical raw pixels.
+3. To open an app, tap its home screen icon or trigger Spotlight search.
+4. Always tap an input field before sending a 'type' action.
+5. Once the objective is completed, return the 'finish' action.
 """
 
 class VisionBrain:
@@ -40,12 +40,12 @@ class VisionBrain:
     ) -> ActionDecision:
         width, height = screen_size
         user_prompt = f"""
-Kullanıcı Hedefi: "{goal}"
-Ekran Boyutu: {width} x {height} points.
-Önceki Yapılan Eylemler:
-{chr(10).join(f"- {h}" for h in history) if history else "- Henüz bir işlem yapılmadı."}
+User Goal: "{goal}"
+Screen Dimensions: {width} x {height} points.
+Action History:
+{chr(10).join(f"- {h}" for h in history) if history else "- No actions performed yet."}
 
-Ekrandaki görüntüyü incele ve şimdi atılması gereken TEK adımı JSON olarak üret.
+Examine the screenshot and return the single next atomic action as structured JSON.
 """
         if self.provider == "gemini":
             return self._call_gemini(image, user_prompt)
@@ -58,7 +58,6 @@ Ekrandaki görüntüyü incele ve şimdi atılması gereken TEK adımı JSON ola
             from google.genai import types
             client = genai.Client(api_key=config.GEMINI_API_KEY)
             
-            # Resmi buffer'a al
             buf = io.BytesIO()
             image.save(buf, format="PNG")
             img_bytes = buf.getvalue()
@@ -78,8 +77,7 @@ Ekrandaki görüntüyü incele ve şimdi atılması gereken TEK adımı JSON ola
             )
             return ActionDecision.model_validate_json(response.text)
         except Exception as e:
-            # Fallback parsing
-            print(f"[!] Gemini çağrı hatası: {e}")
+            print(f"[!] Gemini call error: {e}")
             raise e
 
     def _call_openai(self, image: Image.Image, prompt: str) -> ActionDecision:

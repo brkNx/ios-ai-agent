@@ -5,14 +5,14 @@ import requests
 from PIL import Image
 
 class WDADriver:
-    """WebDriverAgent (WDA) REST API istemcisi."""
+    """WebDriverAgent (WDA) REST API client for iOS control."""
     def __init__(self, base_url: str = "http://localhost:8100"):
         self.base_url = base_url.rstrip("/")
         self.session_id = None
         self._window_size = None
 
     def is_connected(self) -> bool:
-        """WDA sunucusunun ayakta olup olmadığını kontrol eder."""
+        """Check if the WDA server is reachable."""
         try:
             r = requests.get(f"{self.base_url}/status", timeout=5)
             if r.status_code == 200:
@@ -24,7 +24,7 @@ class WDADriver:
             return False
 
     def get_session(self) -> str:
-        """Mevcut oturumu alır veya yeni oturum başlatır."""
+        """Get the current session or start a new one."""
         if self.session_id:
             return self.session_id
         try:
@@ -37,11 +37,11 @@ class WDADriver:
             self.session_id = data.get("sessionId")
             return self.session_id
         except Exception as e:
-            print(f"[!] Session alma hatası: {e}")
+            print(f"[!] Session acquisition error: {e}")
             return ""
 
     def get_window_size(self) -> tuple[int, int]:
-        """Ekran çözünürlüğünü (point bazında) döndürür (width, height)."""
+        """Return screen resolution in points: (width, height)."""
         if self._window_size:
             return self._window_size
         try:
@@ -55,7 +55,7 @@ class WDADriver:
             return (393, 852)
 
     def screenshot(self) -> Image.Image:
-        """Ekran görüntüsü alır ve PIL Image nesnesi döner."""
+        """Capture screenshot and return a PIL Image object."""
         r = requests.get(f"{self.base_url}/screenshot", timeout=10)
         res = r.json()
         b64_data = res.get("value", "")
@@ -63,14 +63,14 @@ class WDADriver:
         return Image.open(io.BytesIO(img_bytes))
 
     def tap(self, x: int, y: int):
-        """Ekranda (x, y) koordinatına tıklar."""
+        """Tap at screen coordinates (x, y)."""
         url = f"{self.base_url}/wda/tap/nil"
         payload = {"x": x, "y": y}
         r = requests.post(url, json=payload, timeout=5)
         return r.status_code == 200
 
     def swipe(self, from_x: int, from_y: int, to_x: int, to_y: int, duration: float = 0.4):
-        """Ekranda kaydırma hareketi yapar."""
+        """Perform a swipe gesture from (from_x, from_y) to (to_x, to_y)."""
         url = f"{self.base_url}/wda/dragfromtoforduration"
         payload = {
             "fromX": from_x,
@@ -83,20 +83,20 @@ class WDADriver:
         return r.status_code == 200
 
     def type_text(self, text: str):
-        """Aktif odaklanmış alana metin yazar."""
+        """Type text into currently focused input element."""
         url = f"{self.base_url}/wda/keys"
         payload = {"value": list(text)}
         r = requests.post(url, json=payload, timeout=10)
         return r.status_code == 200
 
     def press_home(self):
-        """Ana ekrana döner."""
+        """Press the home button / navigate to SpringBoard."""
         url = f"{self.base_url}/wda/homescreen"
         r = requests.post(url, timeout=5)
         return r.status_code == 200
 
     def launch_app(self, bundle_id: str):
-        """Belirtilen bundle_id'ye sahip uygulamayı başlatır."""
+        """Launch an application by its bundleId."""
         session_id = self.get_session()
         url = f"{self.base_url}/session/{session_id}/wda/apps/launch" if session_id else f"{self.base_url}/wda/apps/launch"
         payload = {"bundleId": bundle_id}

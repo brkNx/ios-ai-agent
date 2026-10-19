@@ -1,106 +1,110 @@
-# iOS AI Agent (iPhone Otonom Kontrol Ajanı)
+# iOS AI Agent
 
-Bu repo, iPhone'unuzu tıpkı bir insanın kullandığı gibi **otonom olarak ekrana bakıp tıklayarak, yazarak ve kaydırarak** kontrol eden yapay zeka ajanını içerir.
+An autonomous multimodal AI agent that operates an iPhone just like a human: perceiving the live screen, deciding actions with vision LLMs, tapping buttons, scrolling, and typing.
 
-> **Önemli:** Ağır Xcode kurulumuna gerek yoktur. Eski/düşük donanımlı bir Mac ve Sideloadly yeterlidir.
-
----
-
-## 🛠️ Adım Adım Kurulum Rehberi
-
-### Adım 1: iPhone'da Geliştirici Modunu Aç
-1. iPhone'da **Ayarlar > Gizlilik ve Güvenlik > Geliştirici Modu (Developer Mode)** bölümüne girin.
-2. Geliştirici Modunu **Açık** yapın ve telefonu yeniden başlatın.
+> **Zero Bloat:** Does not require a heavy 40 GB Xcode installation. Runs cleanly on any Mac using Sideloadly and lightweight Python tools.
 
 ---
 
-### Adım 2: WebDriverAgent (WDA) IPA'sını Telefona Yükle (Xcode'suz)
-1. Mac'inize **Sideloadly** indirin (~50 MB): [https://sideloadly.io](https://sideloadly.io)
-2. Hazır `WebDriverAgentRunner.ipa` dosyasını indirin:
-   * [Appium WebDriverAgent Releases](https://github.com/appium/WebDriverAgent/releases) üzerinden son sürüm `.ipa` dosyasını alın.
-3. iPhone'unuzu kabloyla Mac'e takın.
-4. Sideloadly'yi açın:
-   * İndirdiğiniz `.ipa` dosyasını pencereye sürükleyin.
-   * Apple ID bilginizi girin (ücretsiz kişisel hesap yeterlidir).
-   * **Start** butonuna basın. Uygulama birkaç dakika içinde iPhone'a yüklenir.
-5. iPhone'da:
-   * **Ayarlar > Genel > VPN ve Aygıt Yönetimi** kısmına girip Apple ID'nize tıklayarak **Güven** deyin.
+## 🛠️ Step-by-Step Setup Guide
+
+### Step 1: Enable Developer Mode on iPhone
+1. On your iPhone, navigate to **Settings > Privacy & Security > Developer Mode**.
+2. Toggle Developer Mode **ON** and reboot the device when prompted.
 
 ---
 
-### Adım 3: Telefonu Mac'e Bağla & Portu Aç
-Telefondaki `WebDriverAgentRunner` simgesine dokunup açın (siyah veya boş bir ekran gelip arka planda çalışır).
+### Step 2: Install WebDriverAgent (WDA) via Sideloadly (No Xcode Needed)
+1. Download **Sideloadly** (~50 MB) on your Mac: [https://sideloadly.io](https://sideloadly.io)
+2. Obtain `WebDriverAgentRunner.ipa`:
+   * The prebuilt IPA is included in this repository as `WebDriverAgentRunner.ipa` (or build from [Appium WebDriverAgent Releases](https://github.com/appium/WebDriverAgent/releases)).
+3. Connect your iPhone to your Mac via USB cable.
+4. Launch Sideloadly:
+   * Drag & drop `WebDriverAgentRunner.ipa` onto the **IPA** box.
+   * Enter your Apple ID (free personal account works).
+   * Click **Start**. The app installs directly onto the iPhone.
+5. On your iPhone:
+   * Go to **Settings > General > VPN & Device Management**, tap your Apple ID, and tap **Trust**.
+   * Tap the **WebDriverAgentRunner** icon on your home screen once to launch the background server.
 
-USB üzerinden bağlantıyı Mac'e köprülemek için terminalde `tidevice` veya `iproxy` kullanabilirsiniz:
+---
+
+### Step 3: Relay Device Port
+Bridge the device's WDA port to your Mac via USB using `t3` (tidevice3) or `iproxy`:
+
 ```bash
-# tidevice kurun (Xcode gerektirmez)
-pip install tidevice
+# Activate virtual environment
+source .venv/bin/activate
 
-# WDA portunu Mac'e bağlayın (arka planda çalışsın)
-tidevice wdaproxy -B com.facebook.WebDriverAgentRunner.xctrunner -p 8100
+# Relay WDA port to localhost:8100
+t3 relay 8100 8100
 ```
-*(Artık iPhone `http://localhost:8100` üzerinden kontrol edilebilir).*
 
 ---
 
-### Adım 4: Repoyu Hazırla
+### Step 4: Configure & Test
 
-1. Bağımlılıkları yükleyin:
+1. Install dependencies:
    ```bash
-   cd /Users/brkn/ios-ai-agent
    pip install -r requirements.txt
    ```
 
-2. `.env` dosyasını oluşturun:
+2. Setup `.env` configuration:
    ```bash
    cp .env.example .env
    ```
-   `.env` dosyasını açıp API anahtarınızı girin:
+   Add your Gemini or OpenAI API key:
    ```env
    AI_PROVIDER=gemini
    GEMINI_API_KEY=AIzaSy...
+   GEMINI_MODEL=gemini-3.5-flash
    ```
 
-3. Bağlantıyı test edin:
+3. Test the connection:
    ```bash
    python3 main.py --test
    ```
-   Ekranda `[✅] Bağlantı başarılı!` yazıyorsa sistem hazırdır.
+   If it outputs `[✅] Connection successful!`, the agent is ready.
 
 ---
 
-## 🚀 Kullanım
+## 🚀 Usage
 
-Ajanı terminalden çalıştırmak için istediğiniz görevi yazın:
+Run the agent from the terminal with any natural language command:
 
 ```bash
-# Örnek 1: Mesaj gönderme
-python3 main.py "WhatsApp'ı aç, Mehmet'e 'Saat 5'te oradayım' yaz ve gönder"
+# Example 1: Send a message
+python3 main.py "Open WhatsApp, find Mom, and send 'I will be there in 30 minutes'"
 
-# Örnek 2: Ayar kontrolü
-python3 main.py "Ayarlar uygulamasını aç ve Pil Sağlığını kontrol et"
+# Example 2: Check settings
+python3 main.py "Open Settings and check Battery Health"
 
-# Örnek 3: Safari'de gezinme
-python3 main.py "Safari'yi aç, google.com'a git ve hava durumunu ara"
+# Example 3: Browse Safari
+python3 main.py "Open Safari, search for apple stock price on Google"
 ```
 
 ---
 
-## 🧩 Mimari
+## 🧩 Architecture
 
 ```
-[ Kullanıcı Emri ]
-       │
-       ▼
-[ IOSAgent (agent.py) ] ◄──────┐
-       │ (Ekran Görüntüsü)     │
-       ▼                       │
-[ VisionBrain (brain.py) ]     │ (Görsel Döngü)
-  (Gemini / OpenAI Vision)     │
-       │ (Karar: Tap, Type)    │
-       ▼                       │
-[ WDADriver (wda_driver.py) ] ──┘
-       │ (HTTP REST: /wda/tap)
-       ▼
-[ iPhone Ekranı (WDA) ] (Fiziksel Tıklama ve Yazma)
+[ User Prompt / Goal ]
+          │
+          ▼
+   [ IOSAgent (agent.py) ] ◄────────┐
+          │ (Screenshot capture)    │
+          ▼                         │
+ [ VisionBrain (brain.py) ]         │ (Perception Loop)
+   (Gemini / OpenAI Vision)         │
+          │ (Decision: Tap / Type)  │
+          ▼                         │
+ [ WDADriver (wda_driver.py) ] ─────┘
+          │ (HTTP REST: /wda/tap)
+          ▼
+   [ iPhone Screen ] (Physical tap & typing execution)
 ```
+
+---
+
+## 📄 License
+MIT License
